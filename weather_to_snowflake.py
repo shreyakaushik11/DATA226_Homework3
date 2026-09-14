@@ -52,21 +52,21 @@ def load_weather(records):
     cur = return_snowflake_conn()
     target_table = "raw.weather_data"
 
+    cur.execute(f"""
+        CREATE TABLE IF NOT EXISTS {target_table} (
+            latitude FLOAT,
+            longitude FLOAT,
+            date DATE,
+            temp_max FLOAT,
+            temp_min FLOAT,
+            precipitation FLOAT,
+            weather_code INTEGER,
+            PRIMARY KEY (latitude, longitude, date)
+        );
+    """)
+
     try:
         cur.execute("BEGIN;")
-
-        cur.execute(f"""
-            CREATE TABLE IF NOT EXISTS {target_table} (
-                latitude FLOAT,
-                longitude FLOAT,
-                date DATE,
-                temp_max FLOAT,
-                temp_min FLOAT,
-                precipitation FLOAT,
-                weather_code INTEGER,
-                PRIMARY KEY (latitude, longitude, date)
-            );
-        """)
 
         cur.execute(f"DELETE FROM {target_table}")
 
