@@ -1,8 +1,15 @@
 from airflow import DAG
-from airflow.decorators import task
 from airflow.models import Variable
+from airflow.decorators import task
+from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from datetime import datetime
 import requests
+
+
+def return_snowflake_conn():
+    hook = SnowflakeHook(snowflake_conn_id="snowflake_conn")
+    conn = hook.get_conn()
+    return conn.cursor()
 
 
 @task
@@ -42,11 +49,49 @@ def extract_weather(latitude, longitude):
 
 @task
 def load_weather(records):
-    print("Number of weather records:", len(records))
+    cur = return_snowflake_conn()
+    target_table = "raw.weather_data"
 
-    # Snowflake loading code will be added later
-    # when we do the Snowflake Connection requirement
+    try:
+        cur.execute("BEGIN;")
 
+        cur.execute(f"""
+            CREATE TABLE IF NOT EXISTS {target_table} (
+                latitude FLOAT,
+                longitude FLOAT,
+                date DATE,
+                temp_max FLOAT,
+                temp_min FLOAT,
+                precipitation FLOAT,
+                weather_code INTEGER,
+                PRIMARY KEY (latitude, longitude, date)
+            );
+        """)
+
+        cur.execute(f"DELETE FROM {target_table}")
+
+        for r in records:
+            sql = f"""
+                INSERT INTO {target_table}
+                (latitude, longitude, date, temp_max, temp_min, precipitation, weather_code)
+                VALUES (
+                    {r[0]},
+                    {r[1]},
+                    '{r[2]}',
+                    {r[3]},
+                    {r[4]},
+                    {r[5]},
+                    {r[6]}
+                )
+            """
+            cur.execute(sql)
+
+        cur.execute("COMMIT;")
+
+    except Exception as e:
+        cur.execute("ROLLBACK;")
+        print(e)
+        raise e
 
 with DAG(
     dag_id="WeatherToSnowflake",
