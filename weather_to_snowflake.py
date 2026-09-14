@@ -1,5 +1,6 @@
 from airflow import DAG
 from airflow.decorators import task
+from airflow.models import Variable
 from datetime import datetime
 import requests
 
@@ -55,8 +56,8 @@ with DAG(
     schedule="30 2 * * *"
 ) as dag:
 
-    latitude = 37.3394
-    longitude = -121.895
+    latitude = float(Variable.get("latitude"))
+    longitude = float(Variable.get("longitude"))
 
     weather_data = extract_weather(latitude, longitude)
 
